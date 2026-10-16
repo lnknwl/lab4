@@ -3,8 +3,11 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <sstream>
 #include <windows.h>
 #include "ChessPiece.h"
+#include "Rook.h"
+#include "Bishop.h"
 
 /**
  * @brief Вспомогательная фигура для проверки базового класса
@@ -49,7 +52,7 @@ public:
 };
 
 /**
- * @brief Выводит результат проверки
+ * @brief Сообщает об ошибке, если условие не выполнено
  *
  * @param condition Результат условия
  * @param message Название проверки
@@ -57,9 +60,9 @@ public:
  */
 void check(bool condition, const std::string& message, int& errors)
 {
-    std::cout << (condition ? "[OK] " : "[Ошибка] ") << message << '\n';
     if (!condition)
     {
+        std::cout << "Ошибка: " << message << '\n';
         ++errors;
     }
 }
@@ -88,7 +91,110 @@ bool rejectsPiece(Color color, int x, int y)
 }
 
 /**
- * @brief Проверяет базовый класс, копирование и время жизни фигур
+ * @brief Проверяет ладью, слона и полиморфизм
+ *
+ * @param errors Количество ошибок
+ */
+void testSlidingPieces(int& errors)
+{
+    int white = ChessPiece::getWhiteCount();
+    int black = ChessPiece::getBlackCount();
+    check(std::is_abstract<SlidingPiece>::value &&
+          std::is_base_of<ChessPiece, SlidingPiece>::value &&
+          std::is_base_of<SlidingPiece, Rook>::value &&
+          std::is_base_of<SlidingPiece, Bishop>::value,
+          "В иерархии три уровня, SlidingPiece абстрактный", errors);
+
+    {
+        Rook rook(Color::White, 3, 3);
+        Bishop bishop(Color::Black, 3, 3);
+        ChessPiece* pieces[] = {&rook, &bishop};
+        check(pieces[0]->getSymbol() == 'R' && pieces[1]->getSymbol() == 'b',
+              "Символы фигур получены через базовые указатели", errors);
+        check(ChessPiece::getWhiteCount() == white + 1 && ChessPiece::getBlackCount() == black + 1,
+              "Наследники учитываются по одному разу", errors);
+
+        const int straightMoves[][2] = {{0, 3}, {7, 3}, {3, 0}, {3, 7}};
+        for (const auto& target : straightMoves)
+        {
+            check(pieces[0]->canMoveTo(target[0], target[1]) &&
+                  !pieces[1]->canMoveTo(target[0], target[1]),
+                  "Ладья ходит по прямой, слон такой ход отклоняет", errors);
+        }
+        const int diagonalMoves[][2] = {{0, 0}, {0, 6}, {6, 0}, {7, 7}};
+        for (const auto& target : diagonalMoves)
+        {
+            check(pieces[1]->canMoveTo(target[0], target[1]) &&
+                  !pieces[0]->canMoveTo(target[0], target[1]),
+                  "Слон ходит по диагонали, ладья такой ход отклоняет", errors);
+        }
+        check(rook.getX() == 3 && rook.getY() == 3 && bishop.getX() == 3 && bishop.getY() == 3,
+              "Вызов canMoveTo не изменяет позицию", errors);
+
+        const int wrongMoves[][2] = {{3, 3}, {4, 5}, {-1, 3}, {8, 3}, {3, -1}, {3, 8}, {-1, -1}, {8, 8}};
+        for (const auto& target : wrongMoves)
+        {
+            check(!pieces[0]->moveTo(target[0], target[1]) &&
+                  !pieces[1]->moveTo(target[0], target[1]) &&
+                  rook.getX() == 3 && rook.getY() == 3 && bishop.getX() == 3 && bishop.getY() == 3,
+                  "Неправильный ход не изменил фигуры", errors);
+        }
+
+        std::ostringstream display;
+        std::streambuf* oldBuffer = std::cout.rdbuf(display.rdbuf());
+        pieces[0]->printInfo();
+        pieces[1]->printInfo();
+        std::cout.rdbuf(oldBuffer);
+        check(display.str().find("Ладья:") != std::string::npos &&
+              display.str().find("Слон:") != std::string::npos,
+              "Наследники переопределили виртуальный вывод с базовой реализацией", errors);
+
+        check(pieces[0]->moveTo(3, 7) && rook.getY() == 7 &&
+              pieces[1]->moveTo(0, 0) && bishop.getX() == 0 && bishop.getY() == 0,
+              "moveTo использует правила нужного наследника", errors);
+        check(bishop.moveTo(7, 7) && bishop.moveTo(0, 0),
+              "Слон ходит между углами доски в обе стороны", errors);
+
+        Rook rookCopy(rook);
+        check(rookCopy.moveTo(7, 7) && rook.getX() == 3 && rook.getY() == 7,
+              "Копия ладьи изменяется независимо", errors);
+        Bishop bishopCopy(Color::White, 1, 1);
+        bishopCopy = bishop;
+        check(bishopCopy.getColor() == Color::Black && bishopCopy.moveTo(1, 1) &&
+              bishop.getX() == 0 && bishop.getY() == 0,
+              "Присваивание слона скопировало цвет и сохранило независимость", errors);
+        Rook blackRook(Color::Black, 0, 0);
+        Bishop whiteBishop(Color::White, 7, 7);
+        check(blackRook.getSymbol() == 'r' && whiteBishop.getSymbol() == 'B',
+              "Обозначения зависят от цвета", errors);
+    }
+
+    check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+          "После уничтожения наследников счетчики восстановлены", errors);
+    try
+    {
+        Rook wrong(static_cast<Color>(7), 0, 0);
+        check(false, "Неверный цвет ладьи отклонен", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Неверный цвет наследника не изменил счетчики", errors);
+    }
+    try
+    {
+        Bishop wrong(Color::Black, 8, 0);
+        check(false, "Неверная позиция слона отклонена", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Неверная позиция наследника не изменила счетчики", errors);
+    }
+}
+
+/**
+ * @brief Проверяет базовый класс и фигуры
  *
  * @return 0 если все проверки прошли, иначе 1
  */
@@ -163,8 +269,16 @@ int main()
               "Удаление через базовый указатель вызвало нужный деструктор", errors);
     }
 
+    testSlidingPieces(errors);
     check(ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0,
           "После уничтожения фигур счетчики равны нулю", errors);
-    std::cout << "\nКоличество ошибок: " << errors << '\n';
+    if (errors == 0)
+    {
+        std::cout << "Все проверки выполнены\n";
+    }
+    else
+    {
+        std::cout << "Количество ошибок: " << errors << '\n';
+    }
     return errors == 0 ? 0 : 1;
 }

@@ -1,10 +1,24 @@
 #include <iostream>
-#include <type_traits>
 #include <windows.h>
-#include "ChessPiece.h"
+#include "Rook.h"
+#include "Bishop.h"
 
 /**
- * @brief Показывает начальную информацию о модели
+ * @brief Выполняет ход и выводит его результат
+ *
+ * @param piece Фигура
+ * @param x Столбец назначения
+ * @param y Строка назначения
+ */
+void showMove(ChessPiece& piece, int x, int y)
+{
+    std::cout << "Ход " << piece.getSymbol() << ": (" << piece.getX() << ", "
+              << piece.getY() << ") -> (" << x << ", " << y << "): ";
+    std::cout << (piece.moveTo(x, y) ? "выполнен" : "отклонен") << '\n';
+}
+
+/**
+ * @brief Показывает фигуры и полиморфные вызовы ходов
  *
  * @return 0 если программа завершилась успешно
  */
@@ -15,11 +29,36 @@ int main()
 
     std::cout << "Лабораторная работа №4. Вариант 4\n";
     std::cout << "Шахматные фигуры\n\n";
-    std::cout << "Базовый класс абстрактный: "
-              << (std::is_abstract<ChessPiece>::value ? "да" : "нет") << '\n';
     std::cout << "Размер доски: 8 на 8\n";
-    std::cout << "Белых фигур: " << ChessPiece::getWhiteCount() << '\n';
-    std::cout << "Черных фигур: " << ChessPiece::getBlackCount() << '\n';
-    std::cout << "Конкретные фигуры будут добавлены в следующих частях\n";
+
+    {
+        Rook rook(Color::White, 0, 0);
+        Bishop bishop(Color::Black, 2, 0);
+        ChessPiece* pieces[] = {&rook, &bishop};
+
+        std::cout << "\nНачальные фигуры:\n";
+        for (const ChessPiece* piece : pieces)
+        {
+            piece->printInfo();
+        }
+        std::cout << "Белых фигур: " << ChessPiece::getWhiteCount() << '\n';
+        std::cout << "Черных фигур: " << ChessPiece::getBlackCount() << '\n';
+
+        std::cout << "\nХоды фигур:\n";
+        showMove(*pieces[0], 0, 5);
+        showMove(*pieces[0], 2, 6);
+        showMove(*pieces[1], 5, 3);
+        showMove(*pieces[1], 5, 4);
+        showMove(*pieces[0], -1, 5);
+
+        std::cout << "\nПосле ходов:\n";
+        for (const ChessPiece* piece : pieces)
+        {
+            piece->printInfo();
+        }
+    }
+
+    std::cout << "\nПосле завершения: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
     return 0;
 }

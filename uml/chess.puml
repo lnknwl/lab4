@@ -30,5 +30,28 @@ abstract class ChessPiece {
     + {static} getBlackCount() : int
 }
 
+abstract class SlidingPiece {
+    # SlidingPiece(color : Color, x : int, y : int)
+    # isStraightMove(newX : int, newY : int) const : bool
+    # isDiagonalMove(newX : int, newY : int) const : bool
+}
+
+class Rook {
+    + Rook(color : Color, x : int, y : int)
+    + canMoveTo(newX : int, newY : int) const : bool
+    + getSymbol() const : char
+    + printInfo() const : void
+}
+
+class Bishop {
+    + Bishop(color : Color, x : int, y : int)
+    + canMoveTo(newX : int, newY : int) const : bool
+    + getSymbol() const : char
+    + printInfo() const : void
+}
+
 ChessPiece --> Color : цвет
+ChessPiece <|-- SlidingPiece
+SlidingPiece <|-- Rook
+SlidingPiece <|-- Bishop
 @enduml
