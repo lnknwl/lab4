@@ -1,0 +1,34 @@
+@startuml
+title Лабораторная работа №4. Вариант 4 — Шахматные фигуры
+skinparam classAttributeIconSize 0
+
+enum Color {
+    White
+    Black
+}
+
+abstract class ChessPiece {
+    - color : Color
+    - x : int
+    - y : int
+    - {static} whiteCount : int
+    - {static} blackCount : int
+    # ChessPiece(color : Color, x : int, y : int)
+    # ChessPiece(other : const ChessPiece&)
+    # operator=(other : const ChessPiece&) : ChessPiece&
+    # isValidDestination(newX : int, newY : int) const : bool
+    + ~ChessPiece()
+    + {abstract} canMoveTo(newX : int, newY : int) const : bool
+    + {abstract} getSymbol() const : char
+    + printInfo() const : void
+    + moveTo(newX : int, newY : int) : bool
+    + getColor() const : Color
+    + getX() const : int
+    + getY() const : int
+    + {static} isInsideBoard(x : int, y : int) : bool
+    + {static} getWhiteCount() : int
+    + {static} getBlackCount() : int
+}
+
+ChessPiece --> Color : цвет
+@enduml
