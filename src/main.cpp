@@ -3,6 +3,7 @@
 #include "Rook.h"
 #include "Bishop.h"
 #include "Knight.h"
+#include "Queen.h"
 
 /**
  * @brief Выполняет ход и выводит его результат
@@ -36,7 +37,8 @@ int main()
         Rook rook(Color::White, 0, 0);
         Bishop bishop(Color::Black, 2, 0);
         Knight knight(Color::White, 1, 0);
-        ChessPiece* pieces[] = {&rook, &bishop, &knight};
+        Queen queen(Color::Black, 3, 7);
+        ChessPiece* pieces[] = {&rook, &bishop, &knight, &queen};
 
         std::cout << "\nНачальные фигуры:\n";
         for (const ChessPiece* piece : pieces)
@@ -45,6 +47,10 @@ int main()
         }
         std::cout << "Белых фигур: " << ChessPiece::getWhiteCount() << '\n';
         std::cout << "Черных фигур: " << ChessPiece::getBlackCount() << '\n';
+
+        CombinedPiece* combined = &queen;
+        std::cout << "Ход ферзя из (3, 7) в (7, 3) через CombinedPiece: "
+                  << (combined->canMoveCombined(7, 3) ? "возможен" : "невозможен") << '\n';
 
         std::cout << "\nХоды фигур:\n";
         showMove(*pieces[0], 0, 5);
@@ -56,6 +62,11 @@ int main()
         showMove(*pieces[2], 2, 3);
         showMove(*pieces[2], 0, 1);
         showMove(*pieces[2], -1, 3);
+        showMove(*pieces[3], 3, 4);
+        showMove(*pieces[3], 7, 4);
+        showMove(*pieces[3], 4, 1);
+        showMove(*pieces[3], 5, 3);
+        showMove(*pieces[3], 8, 5);
 
         std::cout << "\nПосле ходов:\n";
         for (const ChessPiece* piece : pieces)

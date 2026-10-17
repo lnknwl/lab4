@@ -62,10 +62,25 @@ class Knight {
     + printInfo() const : void
 }
 
+interface CombinedPiece {
+    + ~CombinedPiece()
+    + canMoveCombined(newX : int, newY : int) const : bool
+}
+
+class Queen {
+    + Queen(color : Color, x : int, y : int)
+    + canMoveTo(newX : int, newY : int) const : bool
+    + canMoveCombined(newX : int, newY : int) const : bool
+    + getSymbol() const : char
+    + printInfo() const : void
+}
+
 ChessPiece --> Color : цвет
 ChessPiece <|-- SlidingPiece
 SlidingPiece <|-- Rook
 SlidingPiece <|-- Bishop
 ChessPiece <|-- JumpingPiece
 JumpingPiece <|-- Knight
+SlidingPiece <|-- Queen
+CombinedPiece <|.. Queen
 @enduml

@@ -10,6 +10,7 @@
 #include "Rook.h"
 #include "Bishop.h"
 #include "Knight.h"
+#include "Queen.h"
 
 /**
  * @brief Вспомогательная фигура для проверки базового класса
@@ -298,6 +299,106 @@ void testKnight(int& errors)
 }
 
 /**
+ * @brief Проверяет ферзя и множественное наследование
+ *
+ * @param errors Количество ошибок
+ */
+void testQueen(int& errors)
+{
+    int white = ChessPiece::getWhiteCount();
+    int black = ChessPiece::getBlackCount();
+    check(std::is_abstract<CombinedPiece>::value &&
+          std::has_virtual_destructor<CombinedPiece>::value &&
+          std::is_base_of<SlidingPiece, Queen>::value && std::is_base_of<CombinedPiece, Queen>::value,
+          "Ферзь наследует класс и абстрактный интерфейс", errors);
+
+    {
+        Queen queen(Color::White, 3, 3);
+        ChessPiece* piece = &queen;
+        CombinedPiece* combined = &queen;
+        check(ChessPiece::getWhiteCount() == white + 1 && ChessPiece::getBlackCount() == black,
+              "Две базы не дублируют фигуру и счетчик", errors);
+        check(dynamic_cast<ChessPiece*>(combined) == piece &&
+              dynamic_cast<CombinedPiece*>(piece) == combined,
+              "Обе базы ссылаются на один объект ферзя", errors);
+
+        const int targets[][2] = {{0, 3}, {7, 3}, {3, 0}, {3, 7}, {0, 0}, {0, 6}, {6, 0}, {7, 7}};
+        for (const auto& target : targets)
+        {
+            check(piece->canMoveTo(target[0], target[1]) &&
+                  combined->canMoveCombined(target[0], target[1]),
+                  "Ферзь доступен по всем направлениям через обе базы", errors);
+        }
+        check(queen.getX() == 3 && queen.getY() == 3 && piece->getSymbol() == 'Q',
+              "Запрос хода не меняет позицию ферзя", errors);
+        const int wrongTargets[][2] = {{3, 3}, {4, 5}, {5, 4}, {-1, 3}, {8, 3}, {3, -1}, {3, 8},
+                                      {std::numeric_limits<int>::min(), 3},
+                                      {3, std::numeric_limits<int>::max()}};
+        for (const auto& target : wrongTargets)
+        {
+            check(!combined->canMoveCombined(target[0], target[1]) &&
+                  !piece->moveTo(target[0], target[1]) && queen.getX() == 3 && queen.getY() == 3,
+                  "Неправильный ход ферзя сохраняет позицию", errors);
+        }
+
+        check(piece->moveTo(3, 7) && piece->moveTo(7, 7) && piece->moveTo(0, 0),
+              "Ферзь последовательно ходит по вертикали, горизонтали и диагонали", errors);
+        Queen copy(queen);
+        check(copy.moveTo(7, 7) && queen.getX() == 0 && queen.getY() == 0,
+              "Копия ферзя перемещается независимо", errors);
+        Queen blackQueen(Color::Black, 1, 1);
+        check(blackQueen.getSymbol() == 'q', "Черный ферзь имеет обозначение q", errors);
+        blackQueen = queen;
+        check(blackQueen.getColor() == Color::White && blackQueen.getX() == 0 && blackQueen.getY() == 0 &&
+              ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black,
+              "Присваивание ферзя корректно обрабатывает обе базы и статистику", errors);
+        check(blackQueen.moveTo(0, 7) && queen.getY() == 0,
+              "После присваивания ферзь независим от оригинала", errors);
+        const Queen& sameQueen = queen;
+        queen = sameQueen;
+        check(queen.getX() == 0 && queen.getY() == 0 && ChessPiece::getWhiteCount() == white + 3,
+              "Самоприсваивание ферзя сохраняет данные", errors);
+
+        std::ostringstream display;
+        std::streambuf* oldBuffer = std::cout.rdbuf(display.rdbuf());
+        piece->printInfo();
+        std::cout.rdbuf(oldBuffer);
+        check(display.str().find("Ферзь:") != std::string::npos,
+              "Ферзь переопределяет виртуальный вывод", errors);
+    }
+    check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+          "После уничтожения ферзей счетчики восстановлены", errors);
+
+    {
+        std::unique_ptr<CombinedPiece> combined(new Queen(Color::Black, 0, 0));
+        check(combined->canMoveCombined(7, 7) && ChessPiece::getBlackCount() == black + 1,
+              "Ферзь используется через указатель на вторую базу", errors);
+    }
+    check(ChessPiece::getBlackCount() == black,
+          "Удаление через интерфейс вызывает деструктор фигуры", errors);
+    try
+    {
+        Queen wrong(Color::White, -1, 0);
+        check(false, "Неверная позиция ферзя отклонена", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Ошибка позиции ферзя не меняет счетчики", errors);
+    }
+    try
+    {
+        Queen wrong(static_cast<Color>(5), 0, 0);
+        check(false, "Неизвестный цвет ферзя отклонен", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Неправильный цвет ферзя не меняет счетчики", errors);
+    }
+}
+
+/**
  * @brief Проверяет базовый класс и фигуры
  *
  * @return 0 если все проверки прошли, иначе 1
@@ -375,6 +476,7 @@ int main()
 
     testSlidingPieces(errors);
     testKnight(errors);
+    testQueen(errors);
     check(ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0,
           "После уничтожения фигур счетчики равны нулю", errors);
     if (errors == 0)
