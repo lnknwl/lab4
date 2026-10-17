@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "Rook.h"
 #include "Bishop.h"
+#include "Knight.h"
 
 /**
  * @brief Выполняет ход и выводит его результат
@@ -34,7 +35,8 @@ int main()
     {
         Rook rook(Color::White, 0, 0);
         Bishop bishop(Color::Black, 2, 0);
-        ChessPiece* pieces[] = {&rook, &bishop};
+        Knight knight(Color::White, 1, 0);
+        ChessPiece* pieces[] = {&rook, &bishop, &knight};
 
         std::cout << "\nНачальные фигуры:\n";
         for (const ChessPiece* piece : pieces)
@@ -50,6 +52,10 @@ int main()
         showMove(*pieces[1], 5, 3);
         showMove(*pieces[1], 5, 4);
         showMove(*pieces[0], -1, 5);
+        showMove(*pieces[2], 2, 2);
+        showMove(*pieces[2], 2, 3);
+        showMove(*pieces[2], 0, 1);
+        showMove(*pieces[2], -1, 3);
 
         std::cout << "\nПосле ходов:\n";
         for (const ChessPiece* piece : pieces)

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -8,6 +9,7 @@
 #include "ChessPiece.h"
 #include "Rook.h"
 #include "Bishop.h"
+#include "Knight.h"
 
 /**
  * @brief Вспомогательная фигура для проверки базового класса
@@ -194,6 +196,108 @@ void testSlidingPieces(int& errors)
 }
 
 /**
+ * @brief Проверяет коня, копирование и полиморфизм
+ *
+ * @param errors Количество ошибок
+ */
+void testKnight(int& errors)
+{
+    int white = ChessPiece::getWhiteCount();
+    int black = ChessPiece::getBlackCount();
+    check(std::is_abstract<JumpingPiece>::value &&
+          std::is_base_of<ChessPiece, JumpingPiece>::value &&
+          std::is_base_of<JumpingPiece, Knight>::value,
+          "Конь образует отдельную цепочку из трех уровней", errors);
+
+    {
+        Knight knight(Color::White, 3, 3);
+        ChessPiece* piece = &knight;
+        const int targets[][2] = {{1, 2}, {1, 4}, {2, 1}, {2, 5}, {4, 1}, {4, 5}, {5, 2}, {5, 4}};
+        for (const auto& target : targets)
+        {
+            check(piece->canMoveTo(target[0], target[1]),
+                  "Конь ходит в каждом из восьми направлений", errors);
+        }
+        check(knight.getX() == 3 && knight.getY() == 3 && piece->getSymbol() == 'N',
+              "Запрос хода через базовый указатель не меняет позицию", errors);
+        const int wrongTargets[][2] = {
+            {3, 3}, {3, 5}, {5, 3}, {4, 4}, {6, 6}, {-1, 2}, {8, 2},
+            {2, -1}, {2, 8}, {std::numeric_limits<int>::min(), 3},
+            {3, std::numeric_limits<int>::max()}
+        };
+        for (const auto& target : wrongTargets)
+        {
+            check(!piece->canMoveTo(target[0], target[1]) &&
+                  !piece->moveTo(target[0], target[1]) && knight.getX() == 3 && knight.getY() == 3,
+                  "Неправильный прыжок не меняет позицию коня", errors);
+        }
+        check(piece->moveTo(5, 4) && knight.getX() == 5 && knight.getY() == 4,
+              "Разрешенный прыжок перемещает коня", errors);
+
+        Knight copy(knight);
+        check(copy.moveTo(3, 3) && knight.getX() == 5 && knight.getY() == 4,
+              "Копия коня перемещается независимо", errors);
+        Knight blackKnight(Color::Black, 0, 0);
+        check(blackKnight.getSymbol() == 'n', "Черный конь имеет обозначение n", errors);
+        blackKnight = knight;
+        check(blackKnight.getColor() == Color::White && blackKnight.getSymbol() == 'N' &&
+              blackKnight.getX() == 5 && blackKnight.getY() == 4 &&
+              ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black,
+              "Присваивание коня копирует цвет, позицию и обновляет статистику", errors);
+        check(blackKnight.moveTo(4, 2) && knight.getX() == 5 && knight.getY() == 4,
+              "После присваивания конь независим от оригинала", errors);
+        const Knight& sameKnight = knight;
+        knight = sameKnight;
+        check(knight.getX() == 5 && knight.getY() == 4 && ChessPiece::getWhiteCount() == white + 3,
+              "Самоприсваивание коня сохраняет данные", errors);
+
+        std::ostringstream display;
+        std::streambuf* oldBuffer = std::cout.rdbuf(display.rdbuf());
+        piece->printInfo();
+        std::cout.rdbuf(oldBuffer);
+        check(display.str().find("Конь:") != std::string::npos,
+              "Конь переопределяет виртуальный вывод информации", errors);
+    }
+
+    const int corners[][6] = {{0, 0, 1, 2, 2, 1}, {7, 0, 5, 1, 6, 2},
+                             {0, 7, 1, 5, 2, 6}, {7, 7, 5, 6, 6, 5}};
+    for (const auto& corner : corners)
+    {
+        Knight knight(Color::Black, corner[0], corner[1]);
+        check(knight.canMoveTo(corner[2], corner[3]) && knight.canMoveTo(corner[4], corner[5]),
+              "Из угла доступны оба хода коня", errors);
+    }
+
+    {
+        std::unique_ptr<ChessPiece> piece(new Knight(Color::Black, 1, 0));
+        check(piece->moveTo(2, 2) && ChessPiece::getBlackCount() == black + 1,
+              "Динамический конь используется через ChessPiece", errors);
+    }
+    check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+          "После удаления коней счетчики восстановлены", errors);
+    try
+    {
+        Knight wrong(Color::White, 0, 8);
+        check(false, "Конь с неправильной позицией отклонен", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Ошибка конструктора коня не меняет счетчики", errors);
+    }
+    try
+    {
+        Knight wrong(static_cast<Color>(5), 0, 0);
+        check(false, "Неизвестный цвет коня отклонен", errors);
+    }
+    catch (const std::invalid_argument&)
+    {
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Неправильный цвет коня не меняет счетчики", errors);
+    }
+}
+
+/**
  * @brief Проверяет базовый класс и фигуры
  *
  * @return 0 если все проверки прошли, иначе 1
@@ -270,6 +374,7 @@ int main()
     }
 
     testSlidingPieces(errors);
+    testKnight(errors);
     check(ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0,
           "После уничтожения фигур счетчики равны нулю", errors);
     if (errors == 0)

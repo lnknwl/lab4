@@ -50,8 +50,22 @@ class Bishop {
     + printInfo() const : void
 }
 
+abstract class JumpingPiece {
+    # JumpingPiece(color : Color, x : int, y : int)
+    # isJumpMove(newX : int, newY : int) const : bool
+}
+
+class Knight {
+    + Knight(color : Color, x : int, y : int)
+    + canMoveTo(newX : int, newY : int) const : bool
+    + getSymbol() const : char
+    + printInfo() const : void
+}
+
 ChessPiece --> Color : цвет
 ChessPiece <|-- SlidingPiece
 SlidingPiece <|-- Rook
 SlidingPiece <|-- Bishop
+ChessPiece <|-- JumpingPiece
+JumpingPiece <|-- Knight
 @enduml
