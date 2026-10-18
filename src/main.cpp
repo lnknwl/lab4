@@ -1,4 +1,6 @@
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <windows.h>
 #include "Rook.h"
 #include "Bishop.h"
@@ -51,6 +53,39 @@ void showCopying(int x, int y)
 }
 
 /**
+ * @brief Показывает отказ конструктора при неправильной позиции
+ */
+void showInvalidPosition()
+{
+    std::cout << "\nСоздание фигуры с неправильной позицией:\n";
+    try
+    {
+        Rook wrong(Color::White, 8, 0);
+    }
+    catch (const std::invalid_argument& error)
+    {
+        std::cout << "Ошибка: " << error.what() << '\n';
+    }
+    std::cout << "После ошибки: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+}
+
+/**
+ * @brief Показывает удаление ферзя через указатель на базовый класс
+ */
+void showPolymorphicDeletion()
+{
+    std::cout << "\nУдаление через базовый указатель:\n";
+    std::unique_ptr<ChessPiece> piece(new Queen(Color::Black, 3, 3));
+    piece->printInfo();
+    std::cout << "До удаления: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+    piece.reset();
+    std::cout << "После удаления: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+}
+
+/**
  * @brief Показывает фигуры и полиморфные вызовы ходов
  *
  * @return 0 если программа завершилась успешно
@@ -92,6 +127,9 @@ int main()
         showMove(board, 0, 0, 2, 0);
         showMove(board, 0, 0, 1, 0);
         showMove(board, 1, 0, 2, 2);
+        showMove(board, 0, 3, 2, 5);
+        showMove(board, 2, 5, 2, 6);
+        showMove(board, 2, 5, 0, 3);
         showMove(board, 0, 0, 0, 5);
         showMove(board, 0, 0, 0, 3);
         showMove(board, 4, 0, 4, 1);
@@ -107,6 +145,14 @@ int main()
             std::vector<ChessPiece*> wrong = {&whiteKing, &blackKing, &secondWhiteKing};
             std::cout << "Доска с двумя белыми королями: "
                       << (ChessPiece::validateBoardState(wrong) ? "допустимая" : "отклонена") << '\n';
+            try
+            {
+                Board wrongBoard(wrong);
+            }
+            catch (const std::invalid_argument& error)
+            {
+                std::cout << "Ошибка создания доски: " << error.what() << '\n';
+            }
         }
     }
 
@@ -118,8 +164,10 @@ int main()
     showCopying<Knight>(5, 4);
     showCopying<Queen>(6, 3);
     showCopying<King>(4, 4);
+    showInvalidPosition();
+    showPolymorphicDeletion();
 
     std::cout << "\nПосле завершения: белых " << ChessPiece::getWhiteCount()
               << ", черных " << ChessPiece::getBlackCount() << '\n';
-    return 0;
+    return ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0 ? 0 : 1;
 }
