@@ -23,6 +23,34 @@ void showMove(Board& board, int fromX, int fromY, int x, int y)
 }
 
 /**
+ * @brief Показывает независимость копии и результат присваивания
+ * @tparam T Конкретный тип фигуры
+ * @param x Столбец для перемещения копии
+ * @param y Строка для перемещения копии
+ */
+template <typename T>
+void showCopying(int x, int y)
+{
+    T original(Color::White, 3, 3);
+    T copy(original);
+    T assigned(Color::Black, 0, 0);
+    std::cout << "\nФигура " << original.getSymbol() << ": оригинал и копия (3, 3)\n";
+    std::cout << "До присваивания: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+    assigned = original;
+    std::cout << "После присваивания: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+    copy.moveTo(x, y);
+    std::cout << "Оригинал: (" << original.getX() << ", " << original.getY()
+              << "), копия: (" << copy.getX() << ", " << copy.getY()
+              << "), присвоенная фигура: (" << assigned.getX() << ", " << assigned.getY() << ")\n";
+    const T& same = assigned;
+    assigned = same;
+    std::cout << "После самоприсваивания: " << assigned.getSymbol() << " ("
+              << assigned.getX() << ", " << assigned.getY() << ")\n";
+}
+
+/**
  * @brief Показывает фигуры и полиморфные вызовы ходов
  *
  * @return 0 если программа завершилась успешно
@@ -81,6 +109,15 @@ int main()
                       << (ChessPiece::validateBoardState(wrong) ? "допустимая" : "отклонена") << '\n';
         }
     }
+
+    std::cout << "\nПосле удаления фигур доски: белых " << ChessPiece::getWhiteCount()
+              << ", черных " << ChessPiece::getBlackCount() << '\n';
+    std::cout << "\nКопирование и присваивание отдельных фигур:\n";
+    showCopying<Rook>(3, 6);
+    showCopying<Bishop>(5, 5);
+    showCopying<Knight>(5, 4);
+    showCopying<Queen>(6, 3);
+    showCopying<King>(4, 4);
 
     std::cout << "\nПосле завершения: белых " << ChessPiece::getWhiteCount()
               << ", черных " << ChessPiece::getBlackCount() << '\n';

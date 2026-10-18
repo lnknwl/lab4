@@ -526,6 +526,102 @@ void testBoard(int& errors)
 }
 
 /**
+ * @brief Проверяет копирование и счетчики одного конкретного типа
+ * @tparam T Тип фигуры
+ * @param x Столбец для разрешенного хода из (3, 3)
+ * @param y Строка для разрешенного хода из (3, 3)
+ * @param errors Количество ошибок
+ */
+template <typename T>
+void testCopying(int x, int y, int& errors)
+{
+    const int white = ChessPiece::getWhiteCount();
+    const int black = ChessPiece::getBlackCount();
+    {
+        const T original(Color::White, 3, 3);
+        T copy(original);
+        T assigned(Color::Black, 0, 0);
+        check(copy.getColor() == original.getColor() && copy.getX() == 3 && copy.getY() == 3 &&
+              copy.getSymbol() == original.getSymbol() &&
+              ChessPiece::getWhiteCount() == white + 2 && ChessPiece::getBlackCount() == black + 1,
+              "Копия конкретного типа сохраняет данные и увеличивает счетчик один раз", errors);
+        check(copy.moveTo(x, y) && original.getX() == 3 && original.getY() == 3,
+              "Перемещение копии не меняет оригинал", errors);
+        check(&(assigned = original) == &assigned && assigned.getX() == 3 && assigned.getY() == 3 &&
+              assigned.getColor() == Color::White && assigned.getSymbol() == original.getSymbol() &&
+              ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black,
+              "Присваивание возвращает ссылку, копирует данные и меняет счетчик цвета", errors);
+        check(assigned.moveTo(x, y) && original.getX() == 3 && original.getY() == 3,
+              "Присвоенная фигура независима от оригинала", errors);
+        const T& same = assigned;
+        check(&(assigned = same) == &assigned && assigned.getX() == x && assigned.getY() == y &&
+              ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black,
+              "Самоприсваивание сохраняет позицию, ссылку и счетчики", errors);
+        const T blackSource(Color::Black, 3, 3);
+        assigned = blackSource;
+        check(assigned.getColor() == Color::Black && assigned.getSymbol() == blackSource.getSymbol() &&
+              assigned.getX() == 3 && assigned.getY() == 3 &&
+              ChessPiece::getWhiteCount() == white + 2 && ChessPiece::getBlackCount() == black + 2,
+              "Обратная смена цвета при присваивании учитывается правильно", errors);
+        assigned = blackSource;
+        check(ChessPiece::getWhiteCount() == white + 2 && ChessPiece::getBlackCount() == black + 2,
+              "Повторное присваивание того же цвета не меняет счетчики", errors);
+        check(assigned.moveTo(x, y) && blackSource.getX() == 3 && blackSource.getY() == 3,
+              "Черная присвоенная фигура независима от источника", errors);
+        std::unique_ptr<ChessPiece> dynamicCopy(new T(blackSource));
+        check(dynamicCopy->getSymbol() == blackSource.getSymbol() &&
+              dynamicCopy->moveTo(x, y) && blackSource.getX() == 3 && blackSource.getY() == 3 &&
+              ChessPiece::getBlackCount() == black + 3,
+              "Динамическая копия доступна через базовый указатель", errors);
+        dynamicCopy.reset();
+        check(ChessPiece::getBlackCount() == black + 2,
+              "Удаление копии через базовый указатель уменьшает счетчик один раз", errors);
+    }
+    check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+          "После уничтожения всех копий оба счетчика восстановлены", errors);
+    for (int invalid = 0; invalid < 2; ++invalid)
+    {
+        try
+        {
+            T wrong(invalid == 0 ? static_cast<Color>(10) : Color::White,
+                    invalid == 0 ? 0 : 8, 0);
+            check(false, "Неправильные данные отклонены конструктором наследника", errors);
+        }
+        catch (const std::invalid_argument&)
+        {
+        }
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Неудачный конструктор наследника сохраняет счетчики", errors);
+    }
+}
+
+/**
+ * @brief Проверяет совместную статистику всей иерархии
+ * @param errors Количество ошибок
+ */
+void testHierarchyStatistics(int& errors)
+{
+    const int white = ChessPiece::getWhiteCount();
+    const int black = ChessPiece::getBlackCount();
+    {
+        std::vector<std::unique_ptr<ChessPiece>> pieces;
+        pieces.emplace_back(new Rook(Color::White, 0, 0));
+        pieces.emplace_back(new Bishop(Color::Black, 1, 0));
+        pieces.emplace_back(new Knight(Color::White, 2, 0));
+        pieces.emplace_back(new Queen(Color::Black, 3, 0));
+        pieces.emplace_back(new King(Color::White, 4, 0));
+        check(ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black + 2,
+              "Статистика общая для разных ветвей наследования", errors);
+        pieces.erase(pieces.begin() + 3);
+        check(ChessPiece::getWhiteCount() == white + 3 && ChessPiece::getBlackCount() == black + 1,
+              "Удаление ферзя с двумя базами уменьшает общий счетчик один раз", errors);
+        pieces.clear();
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black,
+              "Удаление смешанного набора через базовые указатели восстанавливает статистику", errors);
+    }
+}
+
+/**
  * @brief Проверяет базовый класс и фигуры
  *
  * @return 0 если все проверки прошли, иначе 1
@@ -605,6 +701,12 @@ int main()
     testKnight(errors);
     testQueen(errors);
     testBoard(errors);
+    testCopying<Rook>(3, 6, errors);
+    testCopying<Bishop>(5, 5, errors);
+    testCopying<Knight>(5, 4, errors);
+    testCopying<Queen>(6, 3, errors);
+    testCopying<King>(4, 4, errors);
+    testHierarchyStatistics(errors);
     check(ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0,
           "После уничтожения фигур счетчики равны нулю", errors);
     if (errors == 0)
