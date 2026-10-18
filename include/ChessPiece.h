@@ -1,6 +1,8 @@
 #ifndef CHESSPIECE_H
 #define CHESSPIECE_H
 
+#include <vector>
+
 /**
  * @brief Цвет шахматной фигуры
  */
@@ -136,6 +138,14 @@ public:
      * @return Количество черных фигур
      */
     static int getBlackCount();
+
+    /**
+     * @brief Проверяет позиции фигур и количество королей на доске
+     *
+     * @param pieces Фигуры на доске, без пустых указателей
+     * @return true если клетки различаются и у цвета не больше одного короля
+     */
+    static bool validateBoardState(const std::vector<ChessPiece*>& pieces);
 };
 
 #endif

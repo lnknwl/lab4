@@ -28,6 +28,7 @@ abstract class ChessPiece {
     + {static} isInsideBoard(x : int, y : int) : bool
     + {static} getWhiteCount() : int
     + {static} getBlackCount() : int
+    + {static} validateBoardState(pieces : const vector<ChessPiece*>&) : bool
 }
 
 abstract class SlidingPiece {
@@ -75,7 +76,25 @@ class Queen {
     + printInfo() const : void
 }
 
+class King {
+    + King(color : Color, x : int, y : int)
+    + canMoveTo(newX : int, newY : int) const : bool
+    + getSymbol() const : char
+    + printInfo() const : void
+}
+
+class Board {
+    - pieces : vector<ChessPiece*>
+    + Board(pieces : const vector<ChessPiece*>&)
+    + getPieceAt(x : int, y : int) const : const ChessPiece*
+    + movePiece(fromX : int, fromY : int, toX : int, toY : int) : bool
+    + isValid() const : bool
+    + print() const : void
+}
+
 ChessPiece --> Color : цвет
+ChessPiece <|-- King
+Board o-- ChessPiece : фигуры
 ChessPiece <|-- SlidingPiece
 SlidingPiece <|-- Rook
 SlidingPiece <|-- Bishop

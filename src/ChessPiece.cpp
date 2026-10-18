@@ -1,9 +1,45 @@
 #include <iostream>
 #include <stdexcept>
 #include "ChessPiece.h"
+#include "King.h"
 
 int ChessPiece::whiteCount = 0;
 int ChessPiece::blackCount = 0;
+
+/**
+ * @brief Проверяет позиции фигур и количество королей на доске
+ */
+bool ChessPiece::validateBoardState(const std::vector<ChessPiece*>& pieces)
+{
+    bool occupied[8][8] = {};
+    int whiteKings = 0;
+    int blackKings = 0;
+    for (const ChessPiece* piece : pieces)
+    {
+        if (!piece || !isInsideBoard(piece->getX(), piece->getY()) ||
+            (piece->getColor() != Color::White && piece->getColor() != Color::Black))
+        {
+            return false;
+        }
+        if (occupied[piece->getY()][piece->getX()])
+        {
+            return false;
+        }
+        occupied[piece->getY()][piece->getX()] = true;
+        if (dynamic_cast<const King*>(piece))
+        {
+            if (piece->getColor() == Color::White)
+            {
+                ++whiteKings;
+            }
+            else
+            {
+                ++blackKings;
+            }
+        }
+    }
+    return whiteKings <= 1 && blackKings <= 1;
+}
 
 /**
  * @brief Создает фигуру заданного цвета и позиции

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <memory>
 #include <limits>
 #include <stdexcept>
@@ -11,6 +12,8 @@
 #include "Bishop.h"
 #include "Knight.h"
 #include "Queen.h"
+#include "King.h"
+#include "Board.h"
 
 /**
  * @brief Вспомогательная фигура для проверки базового класса
@@ -399,6 +402,130 @@ void testQueen(int& errors)
 }
 
 /**
+ * @brief Проверяет короля, препятствия, взятие и состояние доски
+ * @param errors Количество ошибок
+ */
+void testBoard(int& errors)
+{
+    {
+        King king(Color::White, 3, 3);
+        ChessPiece* base = &king;
+        for (int dx = -1; dx <= 1; ++dx)
+        {
+            for (int dy = -1; dy <= 1; ++dy)
+            {
+                check(base->canMoveTo(3 + dx, 3 + dy) == (dx != 0 || dy != 0),
+                      "Король ходит на все восемь соседних клеток", errors);
+            }
+        }
+        check(!base->moveTo(3, 5) && !base->moveTo(-1, 3) &&
+              !base->canMoveTo(std::numeric_limits<int>::max(), 3) &&
+              !base->canMoveTo(3, std::numeric_limits<int>::min()) && king.getY() == 3,
+              "Неверные ходы короля не меняют позицию", errors);
+        King edge(Color::Black, 0, 0);
+        check(edge.getSymbol() == 'k' && base->getSymbol() == 'K' &&
+              edge.canMoveTo(1, 0) && edge.canMoveTo(0, 1) && edge.canMoveTo(1, 1) &&
+              !edge.canMoveTo(-1, 0), "Король в углу учитывает границы", errors);
+        std::ostringstream display;
+        std::streambuf* previous = std::cout.rdbuf(display.rdbuf());
+        base->printInfo();
+        std::cout.rdbuf(previous);
+        check(display.str().find("Король:") != std::string::npos,
+              "Король переопределяет виртуальный вывод", errors);
+        check(ChessPiece::validateBoardState({&king, &edge}),
+              "Разные цвета королей допустимы", errors);
+        King white2(Color::White, 7, 7);
+        King black2(Color::Black, 0, 7);
+        check(!ChessPiece::validateBoardState({&king, &white2}) &&
+              !ChessPiece::validateBoardState({&edge, &black2}),
+              "Два короля одного цвета отклоняются для обоих цветов", errors);
+        check(ChessPiece::validateBoardState({}) && ChessPiece::validateBoardState({&king}) &&
+              !ChessPiece::validateBoardState({nullptr}) &&
+              !ChessPiece::validateBoardState({&king, &king}),
+              "Пустая доска допустима, пустые и повторные указатели отклоняются", errors);
+        Rook sameCell(Color::Black, 3, 3);
+        check(!ChessPiece::validateBoardState({&king, &sameCell}),
+              "Совпадение клеток разных объектов отклоняется", errors);
+        try
+        {
+            Board wrong({&king, &white2});
+            check(false, "Конструктор доски отклоняет неправильное состояние", errors);
+        }
+        catch (const std::invalid_argument&)
+        {
+        }
+    }
+
+    {
+        Rook rook(Color::White, 0, 0);
+        Knight knight(Color::White, 1, 0);
+        Bishop enemy(Color::Black, 0, 2);
+        Board board({&rook, &knight, &enemy});
+        int white = ChessPiece::getWhiteCount();
+        int black = ChessPiece::getBlackCount();
+        check(!board.movePiece(0, 0, 2, 0) && !board.movePiece(0, 0, 1, 0) &&
+              !board.movePiece(0, 0, 0, 3) && rook.getX() == 0 && rook.getY() == 0,
+              "Нельзя пройти сквозь фигуры любого цвета или занять свою клетку", errors);
+        check(board.movePiece(1, 0, 0, 2) && board.getPieceAt(0, 2) == &knight &&
+              board.getPieceAt(1, 0) == nullptr && board.isValid(),
+              "Конь перепрыгивает ладью и берет чужую фигуру", errors);
+        check(ChessPiece::getWhiteCount() == white && ChessPiece::getBlackCount() == black &&
+              enemy.getX() == 0 && enemy.getY() == 2,
+              "Взятие убирает указатель с доски, но не уничтожает внешний объект", errors);
+        check(!board.movePiece(0, 0, 0, 2) && !board.movePiece(0, 0, 0, 3),
+              "После взятия клетка и путь заняты своим конем", errors);
+        check(board.movePiece(0, 2, 2, 3) && board.movePiece(0, 0, 0, 7) &&
+              board.movePiece(0, 7, 0, 0), "Ладья проходит по освободившемуся пути в обе стороны", errors);
+        check(!board.movePiece(0, 0, 0, 0) && !board.movePiece(7, 7, 6, 7) &&
+              !board.movePiece(-1, 0, 0, 0) && !board.movePiece(0, 0, 8, 0) &&
+              board.getPieceAt(8, 0) == nullptr && board.isValid(),
+              "Пустой источник, прежняя клетка и выход за границы отклоняются", errors);
+    }
+
+    {
+        Bishop bishop(Color::White, 0, 0);
+        Rook blocker(Color::Black, 2, 2);
+        Board board({&bishop, &blocker});
+        check(!board.movePiece(0, 0, 7, 7) && board.movePiece(0, 0, 2, 2) &&
+              board.movePiece(2, 2, 7, 7) && board.movePiece(7, 7, 0, 0) && board.isValid(),
+              "Слон не проходит препятствие, но берет его и ходит в обе стороны", errors);
+    }
+    {
+        Queen queen(Color::White, 3, 3);
+        Rook blocker(Color::Black, 3, 5);
+        Bishop diagonal(Color::White, 2, 2);
+        Board board({&queen, &blocker, &diagonal});
+        check(!board.movePiece(3, 3, 3, 7) && !board.movePiece(3, 3, 0, 0) &&
+              !board.movePiece(3, 3, 2, 2) && board.movePiece(3, 3, 3, 5) &&
+              board.movePiece(3, 5, 5, 7) && board.isValid(),
+              "Ферзь учитывает препятствия и взятие по прямой и диагонали", errors);
+    }
+    {
+        King king(Color::White, 3, 3);
+        Rook own(Color::White, 4, 3);
+        Knight enemy(Color::Black, 2, 2);
+        Board board({&king, &own, &enemy});
+        check(!board.movePiece(3, 3, 4, 3) && board.movePiece(3, 3, 2, 2) && board.isValid(),
+              "Король не занимает свою фигуру и берет чужую на соседней клетке", errors);
+        own.moveTo(2, 3);
+        own.moveTo(2, 2);
+        check(!board.isValid() && !board.movePiece(2, 2, 1, 1),
+              "Доска замечает неправильное внешнее изменение фигур и отклоняет ход", errors);
+    }
+    Board empty;
+    check(empty.isValid() && !empty.movePiece(0, 0, 0, 1),
+          "На пустой доске нельзя сделать ход", errors);
+    std::ostringstream display;
+    std::streambuf* previous = std::cout.rdbuf(display.rdbuf());
+    empty.print();
+    std::cout.rdbuf(previous);
+    const std::string boardText = display.str();
+    check(boardText.find("0 1 2 3 4 5 6 7") != std::string::npos &&
+          std::count(boardText.begin(), boardText.end(), '.') == 64,
+          "Пустая доска выводит координаты и 64 клетки", errors);
+}
+
+/**
  * @brief Проверяет базовый класс и фигуры
  *
  * @return 0 если все проверки прошли, иначе 1
@@ -477,6 +604,7 @@ int main()
     testSlidingPieces(errors);
     testKnight(errors);
     testQueen(errors);
+    testBoard(errors);
     check(ChessPiece::getWhiteCount() == 0 && ChessPiece::getBlackCount() == 0,
           "После уничтожения фигур счетчики равны нулю", errors);
     if (errors == 0)
